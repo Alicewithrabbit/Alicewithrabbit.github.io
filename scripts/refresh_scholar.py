@@ -1,6 +1,7 @@
 """Refresh the static Google Scholar citation panel from Chong Wu's public profile."""
 
 from datetime import date
+from argparse import ArgumentParser
 from html import unescape
 from pathlib import Path
 import re
@@ -38,17 +39,20 @@ def update_panel(markup, total, annual, today):
 {bars}
           </span>
           <span class="chart-years"><span>{annual[0][0]}</span><span>{annual[-1][0]}</span></span>
-          <span class="as-of">Updated <time datetime="{today.isoformat()}">{today.day} {today:%b %Y}</time></span>
+          <span class="as-of">Checked <time datetime="{today.isoformat()}">{today.day} {today:%b %Y}</time></span>
 '''
     return markup[:start] + panel + markup[end:]
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument("page", nargs="?", type=Path, default=PAGE)
+    target = parser.parse_args().page
     with urlopen(Request(PROFILE, headers={"User-Agent": "Mozilla/5.0"}), timeout=20) as response:
         profile = response.read().decode(response.headers.get_content_charset() or "utf-8", errors="replace")
     total, annual = citation_data(unescape(profile))
-    page = update_panel(PAGE.read_text(), total, annual, date.today())
-    temp = PAGE.with_suffix(".html.tmp")
+    page = update_panel(target.read_text(), total, annual, date.today())
+    temp = target.with_suffix(".html.tmp")
     temp.write_text(page)
-    temp.replace(PAGE)
+    temp.replace(target)
     print(f"Google Scholar: {total:,} citations, {annual[0][0]}–{annual[-1][0]}.")
